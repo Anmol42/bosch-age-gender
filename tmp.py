@@ -36,7 +36,8 @@ while True:
 
     ret, frame = cap.read()
     if ret and cnt == 0:
-        frame = cv.resize(frame, dsize=(860, 480))
+        # frame = cv.resize(frame, dsize=(860, 480))
+        # frame = cv.resize(frame,None ,fx=2, fy=2, interpolation=cv.INTER_CUBIC)
         # cv.imshow('Frame', frame)
         faces = face_mod.detect_faces(frame)
         # print(faces)
@@ -48,7 +49,7 @@ while True:
             x, y, w, h = f['box']
             # face = frame[x:x+w, y:y+h]
             face = frame[max(y-padding,0):min(y+h+padding,frame.shape[0]-1), max(0,x-padding):min(x+w+padding,frame.shape[1]-1),:]
-            # print(face.shape)
+            face = cv.resize(face,None ,fx=2, fy=2, interpolation=cv.INTER_CUBIC)# print(face.shape)
             # print(face.shape)
             frame = cv.rectangle(frame, (x, y), (x+w, y+h), color, thickness)
             
@@ -57,13 +58,14 @@ while True:
             genderNet.setInput(blob)
             genderPreds = genderNet.forward()
             gender = genderList[genderPreds[0].argmax()]
+            confidence = round(f['confidence'],4)
             print(f'Gender: {gender}')
 
             ageNet.setInput(blob)
             agePreds = ageNet.forward()
             age = ageList[agePreds[0].argmax()]
             print(f'Age: {age[1:-1]} years')
-
+            cv.putText(frame, f'{gender}, {age},{confidence}', (x, y-10), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2, cv.LINE_AA)
         cv.imshow('/final', frame)
 
         
