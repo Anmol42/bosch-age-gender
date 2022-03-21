@@ -8,13 +8,20 @@ import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 from mtcnn.mtcnn import MTCNN
 import time
+import pandas as pd
+from argparse import ArgumentParser
 
-print(cv.__version__)
+parser = ArgumentParser()
+parser.add_argument('--file',type=str,default='indiancctv.mp4')
+parser.add_argument('--fr_rate',type=int,default=5)
+
+args = parser.parse_args()
+#print(cv.__version__)
 MODEL_MEAN_VALUES=(78.4263377603, 87.7689143744, 114.895847746)
 ageList=['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
 genderList=['Male','Female']
 
-cap = cv.VideoCapture('cctv.mp4')
+cap = cv.VideoCapture(args.file)
 
 model = torch.hub.load('ultralytics/yolov5', 'yolov5n', pretrained=True)
 model.classes = [0]
@@ -32,10 +39,12 @@ cnt = 0
 genderNet = cv.dnn.readNet(genderModel, genderProto)
 ageNet = cv.dnn.readNet(ageModel, ageProto)
 padding = 10
+columns = ['fr_num','bb_xmin','bbymin','bb_height','bb_width','age_min','age_max','gender']
+rslt = pd.DataFrame(columns=columns)
 while True:
 
     ret, frame = cap.read()
-    if ret and cnt == 0:
+    if ret and cnt%args.fr_rate == 0:
         # frame = cv.resize(frame, dsize=(860, 480))
         # frame = cv.resize(frame,None ,fx=2, fy=2, interpolation=cv.INTER_CUBIC)
         # cv.imshow('Frame', frame)
@@ -65,8 +74,12 @@ while True:
             agePreds = ageNet.forward()
             age = ageList[agePreds[0].argmax()]
             print(f'Age: {age[1:-1]} years')
-            cv.putText(frame, f'{gender}, {age},{confidence}', (x, y-10), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2, cv.LINE_AA)
-        cv.imshow('/final', frame)
+            #cv.putText(frame, f'{gender}, {age},{confidence}', (x, y-10), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2, cv.LINE_AA)
+            age_min = age[1:-1]
+            mini,maxi = age_min.split('-')
+            record = {'fr_num':cnt,'bb_xmin':x,'bb_ymin':y,'bb_height':h,'bb_width':w,'age_min':mini,'age_max':maxi,'gender':gender}
+            rslt.append(record,ignore_index=True)
+        #cv.imshow('/final', frame)
 
         
 
@@ -92,4 +105,5 @@ while True:
     if cv.waitKey(25) & 0xFF == ord('q'):
         cv.destroyAllWindows()
         break
-    cnt = (cnt+1) % 2
+    cnt = cnt+1
+rslt.to_csv('Outputs.csv')
